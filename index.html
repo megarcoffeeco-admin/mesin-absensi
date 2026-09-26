@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mesin Absensi</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .screen {
+    display: none;
+    min-height: 100vh;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+  }
+  .screen.active { display: flex; }
+  .container { width: 100%; max-width: 420px; }
+  .app-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 40px 0 8px;
+  }
+  .app-subtitle {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 48px;
+  }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:active { background: var(--primary-dark); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px;
+  }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-outline {
+    background: white;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .pin-input {
+    width: 100%;
+    padding: 18px;
+    font-size: 28px;
+    letter-spacing: 12px;
+    text-align: center;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+  }
+  .pin-input:focus { outline: none; border-color: var(--primary); }
+  input[type=text], input[type=date], input[type=password], select {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  label { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .result-box {
+    text-align: center;
+    padding: 32px 20px;
+  }
+  .result-icon { font-size: 56px; margin-bottom: 12px; }
+  .result-name { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .result-msg { color: var(--muted); margin-bottom: 20px; }
+  .result-total {
+    background: #eff6ff;
+    color: var(--primary);
+    border-radius: 10px;
+    padding: 12px;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .top-bar h2 { font-size: 18px; margin: 0; }
+  .link-btn {
+    background: none; border: none; color: var(--primary);
+    font-size: 14px; font-weight: 600; cursor: pointer; padding: 6px;
+  }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab {
+    flex: 1; padding: 10px; text-align: center; border-radius: 10px;
+    background: white; border: 1px solid var(--border); cursor: pointer;
+    font-size: 14px; font-weight: 600; color: var(--muted);
+  }
+  .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+  .staff-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .staff-row:last-child { border-bottom: none; }
+  .staff-name { font-weight: 600; font-size: 15px; }
+  .staff-meta { font-size: 12px; color: var(--muted); }
+  .badge {
+    background: #eff6ff; color: var(--primary); font-weight: 700;
+    padding: 4px 10px; border-radius: 20px; font-size: 13px;
+  }
+  .badge.inactive { background: #f3f4f6; color: var(--muted); }
+  .icon-btn {
+    background: none; border: none; font-size: 18px; cursor: pointer;
+    padding: 4px 8px; color: var(--muted);
+  }
+  .empty-state { text-align: center; color: var(--muted); padding: 24px; font-size: 14px; }
+  .error-msg { color: var(--danger); font-size: 13px; margin: -6px 0 12px; }
+  .loading { text-align: center; padding: 40px; color: var(--muted); }
+  .staff-detail-list { max-height: 260px; overflow-y: auto; margin-top: 8px; }
+  .staff-detail-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; font-size: 13px; border-bottom: 1px solid var(--border);
+  }
+  .fab-back {
+    position: fixed; top: 16px; left: 16px;
+    background: white; border: 1px solid var(--border);
+    border-radius: 50%; width: 40px; height: 40px;
+    font-size: 18px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- WELCOME SCREEN -->
+<div id="screen-welcome" class="screen active">
+  <div class="container">
+    <div class="app-title">📋 Mesin Absensi</div>
+    <div class="app-subtitle">Presensi kehadiran staf</div>
+    <button class="btn btn-primary" onclick="goTo('checkin')">Check In</button>
+    <div style="text-align:center; margin-top: 32px;">
+      <button class="btn-secondary" onclick="goTo('adminLogin')">⚙ Rekap & Pengaturan</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHECK-IN SCREEN -->
+<div id="screen-checkin" class="screen">
+  <button class="fab-back" onclick="goTo('welcome')">←</button>
+  <div class="container" style="margin-top:60px;">
+    <div class="card">
+      <div style="text-align:center; margin-bottom:20px;">
+        <div style="font-size:15px; color:var(--muted); font-weight:600;">Masukkan PIN Kamu</div>
+      </div>
+      <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" class="pin-input" id="pinInput" placeholder="••••" autofocus>
+      <div id="checkinError" class="error-msg" style="text-align:center; min-height:16px;"></div>
+      <button class="btn btn-primary" onclick="submitCheckin()">Absen</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHECK-IN RESULT SCREEN -->
+<div id="screen-result" class="screen">
+  <div class="container">
+    <div class="card result-box" id="resultBox"></div>
+    <button class="btn btn-outline" onclick="goTo('welcome')">Selesai</button>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN SCREEN -->
+<div id="screen-adminLogin" class="screen">
+  <button class="fab-back" onclick="goTo('welcome')">←</button>
+  <div class="container" style="margin-top:60px;">
+    <div class="card">
+      <label>Passkey Admin</label>
+      <input type="password" id="adminPasskeyInput" placeholder="Masukkan passkey">
+      <div id="adminLoginError" class="error-msg"></div>
+      <button class="btn btn-primary" onclick="submitAdminLogin()">Masuk</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN DASHBOARD SCREEN -->
+<div id="screen-admin" class="screen">
+  <div class="container">
+    <div class="top-bar">
+      <h2>Dashboard Admin</h2>
+      <button class="link-btn" onclick="goTo('welcome')">Keluar</button>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="tabRekap" onclick="switchAdminTab('rekap')">Rekap</div>
+      <div class="tab" id="tabStaff" onclick="switchAdminTab('staff')">Kelola Staf</div>
+    </div>
+
+    <!-- REKAP TAB -->
+    <div id="panelRekap">
+      <div id="rekapContent" class="card"><div class="loading">Memuat...</div></div>
+    </div>
+
+    <!-- STAFF TAB -->
+    <div id="panelStaff" style="display:none;">
+      <div class="card">
+        <label>Tambah Staf Baru</label>
+        <input type="text" id="newStaffNama" placeholder="Nama staf">
+        <input type="text" inputmode="numeric" maxlength="4" id="newStaffPin" placeholder="PIN 4 digit">
+        <div id="addStaffError" class="error-msg"></div>
+        <button class="btn btn-primary" onclick="submitAddStaff()">Tambah Staf</button>
+      </div>
+      <div id="staffListContent" class="card"><div class="loading">Memuat...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- KOREKSI MODAL (simple inline panel) -->
+<div id="screen-koreksi" class="screen">
+  <button class="fab-back" onclick="goTo('admin')">←</button>
+  <div class="container" style="margin-top:60px;">
+    <div class="card">
+      <h3 id="koreksiStaffName" style="margin-top:0;"></h3>
+      <label>Tambah Koreksi Tanggal Hadir</label>
+      <input type="date" id="koreksiTanggal">
+      <div id="koreksiError" class="error-msg"></div>
+      <button class="btn btn-primary" onclick="submitKoreksi()">Tambahkan</button>
+    </div>
+    <div class="card">
+      <label>Riwayat Bulan Ini</label>
+      <div id="koreksiRiwayat" class="staff-detail-list"></div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+let state = {
+  adminPasskey: null,
+  currentRekap: [],
+  koreksiStaffId: null
+};
+
+function goTo(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+
+  if (screen === 'checkin') {
+    document.getElementById('pinInput').value = '';
+    document.getElementById('checkinError').textContent = '';
+    setTimeout(() => document.getElementById('pinInput').focus(), 100);
+  }
+  if (screen === 'admin') {
+    loadRekap();
+  }
+}
+
+async function callApi(payload) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+// ============ CHECK-IN ============
+
+document.getElementById('pinInput').addEventListener('input', function(e) {
+  this.value = this.value.replace(/[^0-9]/g, '');
+  if (this.value.length === 4) submitCheckin();
+});
+
+async function submitCheckin() {
+  const pin = document.getElementById('pinInput').value;
+  const errEl = document.getElementById('checkinError');
+  errEl.textContent = '';
+
+  if (pin.length !== 4) {
+    errEl.textContent = 'PIN harus 4 digit';
+    return;
+  }
+
+  const btn = document.querySelector('#screen-checkin .btn-primary');
+  btn.textContent = 'Memproses...';
+  btn.disabled = true;
+
+  try {
+    const result = await callApi({ action: 'checkin', pin: pin });
+    showCheckinResult(result);
+  } catch (e) {
+    errEl.textContent = 'Gagal terhubung ke server. Coba lagi.';
+  } finally {
+    btn.textContent = 'Absen';
+    btn.disabled = false;
+  }
+}
+
+function showCheckinResult(result) {
+  const box = document.getElementById('resultBox');
+  if (result.success) {
+    box.innerHTML = `
+      <div class="result-icon">✅</div>
+      <div class="result-name">${escapeHtml(result.nama)}</div>
+      <div class="result-msg">Check-in berhasil</div>
+      <div class="result-total">Total hadir bulan ini: ${result.totalHadir} hari</div>
+    `;
+  } else if (result.nama) {
+    box.innerHTML = `
+      <div class="result-icon">ℹ️</div>
+      <div class="result-name">${escapeHtml(result.nama)}</div>
+      <div class="result-msg">${escapeHtml(result.message)}</div>
+      <div class="result-total">Total hadir bulan ini: ${result.totalHadir} hari</div>
+    `;
+  } else {
+    box.innerHTML = `
+      <div class="result-icon">❌</div>
+      <div class="result-msg">${escapeHtml(result.message || 'PIN tidak dikenali')}</div>
+    `;
+  }
+  goTo('result');
+}
+
+// ============ ADMIN LOGIN ============
+
+async function submitAdminLogin() {
+  const passkey = document.getElementById('adminPasskeyInput').value;
+  const errEl = document.getElementById('adminLoginError');
+  errEl.textContent = '';
+
+  if (!passkey) {
+    errEl.textContent = 'Passkey wajib diisi';
+    return;
+  }
+
+  try {
+    const result = await callApi({ action: 'adminLogin', passkey: passkey });
+    if (result.success) {
+      state.adminPasskey = passkey;
+      document.getElementById('adminPasskeyInput').value = '';
+      goTo('admin');
+    } else {
+      errEl.textContent = result.message || 'Passkey salah';
+    }
+  } catch (e) {
+    errEl.textContent = 'Gagal terhubung ke server';
+  }
+}
+
+function switchAdminTab(tab) {
+  document.getElementById('tabRekap').classList.toggle('active', tab === 'rekap');
+  document.getElementById('tabStaff').classList.toggle('active', tab === 'staff');
+  document.getElementById('panelRekap').style.display = tab === 'rekap' ? 'block' : 'none';
+  document.getElementById('panelStaff').style.display = tab === 'staff' ? 'block' : 'none';
+  if (tab === 'staff') loadStaffList();
+}
+
+// ============ REKAP ============
+
+async function loadRekap() {
+  const el = document.getElementById('rekapContent');
+  el.innerHTML = '<div class="loading">Memuat...</div>';
+  try {
+    const result = await callApi({ action: 'getRekap', passkey: state.adminPasskey });
+    if (!result.success) {
+      el.innerHTML = `<div class="empty-state">${escapeHtml(result.message)}</div>`;
+      return;
+    }
+    state.currentRekap = result.rekap;
+    const activeStaff = result.rekap.filter(s => s.aktif);
+    if (activeStaff.length === 0) {
+      el.innerHTML = '<div class="empty-state">Belum ada staf. Tambahkan di tab "Kelola Staf".</div>';
+      return;
+    }
+    el.innerHTML = activeStaff.map(s => `
+      <div class="staff-row" style="cursor:pointer;" onclick="openKoreksi('${s.id}')">
+        <div>
+          <div class="staff-name">${escapeHtml(s.nama)}</div>
+          <div class="staff-meta">Tap untuk koreksi</div>
+        </div>
+        <div class="badge">${s.totalHadir} hari</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    el.innerHTML = '<div class="empty-state">Gagal memuat data</div>';
+  }
+}
+
+// ============ KELOLA STAF ============
+
+async function loadStaffList() {
+  const el = document.getElementById('staffListContent');
+  el.innerHTML = '<div class="loading">Memuat...</div>';
+  try {
+    const result = await callApi({ action: 'getRekap', passkey: state.adminPasskey });
+    if (!result.success) {
+      el.innerHTML = `<div class="empty-state">${escapeHtml(result.message)}</div>`;
+      return;
+    }
+    if (result.rekap.length === 0) {
+      el.innerHTML = '<div class="empty-state">Belum ada staf</div>';
+      return;
+    }
+    el.innerHTML = result.rekap.map(s => `
+      <div class="staff-row">
+        <div>
+          <div class="staff-name">${escapeHtml(s.nama)} ${s.aktif ? '' : '<span class="badge inactive">nonaktif</span>'}</div>
+          <div class="staff-meta">PIN: ${escapeHtml(s.pin)}</div>
+        </div>
+        <div>
+          <button class="icon-btn" onclick="editStaffPin('${s.id}', '${escapeHtml(s.nama)}')" title="Ubah PIN">✏️</button>
+          ${s.aktif ? `<button class="icon-btn" onclick="deactivateStaff('${s.id}', '${escapeHtml(s.nama)}')" title="Nonaktifkan">🗑️</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    el.innerHTML = '<div class="empty-state">Gagal memuat data</div>';
+  }
+}
+
+async function submitAddStaff() {
+  const nama = document.getElementById('newStaffNama').value.trim();
+  const pin = document.getElementById('newStaffPin').value.trim();
+  const errEl = document.getElementById('addStaffError');
+  errEl.textContent = '';
+
+  if (!nama || !pin) {
+    errEl.textContent = 'Nama dan PIN wajib diisi';
+    return;
+  }
+  if (!/^\d{4}$/.test(pin)) {
+    errEl.textContent = 'PIN harus 4 digit angka';
+    return;
+  }
+
+  try {
+    const result = await callApi({ action: 'addStaff', passkey: state.adminPasskey, nama: nama, pin: pin });
+    if (result.success) {
+      document.getElementById('newStaffNama').value = '';
+      document.getElementById('newStaffPin').value = '';
+      loadStaffList();
+    } else {
+      errEl.textContent = result.message;
+    }
+  } catch (e) {
+    errEl.textContent = 'Gagal terhubung ke server';
+  }
+}
+
+async function editStaffPin(id, nama) {
+  const newPin = prompt('PIN baru untuk ' + nama + ' (4 digit):');
+  if (!newPin) return;
+  if (!/^\d{4}$/.test(newPin)) {
+    alert('PIN harus 4 digit angka');
+    return;
+  }
+  const result = await callApi({ action: 'updateStaff', passkey: state.adminPasskey, id: id, pin: newPin });
+  if (result.success) {
+    loadStaffList();
+  } else {
+    alert(result.message);
+  }
+}
+
+async function deactivateStaff(id, nama) {
+  if (!confirm('Nonaktifkan ' + nama + '? Riwayat kehadiran tetap tersimpan.')) return;
+  const result = await callApi({ action: 'deleteStaff', passkey: state.adminPasskey, id: id });
+  if (result.success) {
+    loadStaffList();
+  } else {
+    alert(result.message);
+  }
+}
+
+// ============ KOREKSI ============
+
+function openKoreksi(staffId) {
+  state.koreksiStaffId = staffId;
+  const staff = state.currentRekap.find(s => s.id === staffId);
+  document.getElementById('koreksiStaffName').textContent = staff.nama;
+  document.getElementById('koreksiTanggal').value = '';
+  document.getElementById('koreksiError').textContent = '';
+  renderKoreksiRiwayat(staff);
+  goTo('koreksi');
+}
+
+function renderKoreksiRiwayat(staff) {
+  const el = document.getElementById('koreksiRiwayat');
+  if (staff.riwayat.length === 0) {
+    el.innerHTML = '<div class="empty-state">Belum ada catatan bulan ini</div>';
+    return;
+  }
+  el.innerHTML = staff.riwayat.map(r => `
+    <div class="staff-detail-item">
+      <div>${r.tanggal} ${r.sumber === 'koreksi_admin' ? '(koreksi)' : ''}</div>
+      <button class="icon-btn" onclick="deleteKoreksiItem('${r.presensiId}')">🗑️</button>
+    </div>
+  `).join('');
+}
+
+async function submitKoreksi() {
+  const tanggal = document.getElementById('koreksiTanggal').value;
+  const errEl = document.getElementById('koreksiError');
+  errEl.textContent = '';
+
+  if (!tanggal) {
+    errEl.textContent = 'Pilih tanggal terlebih dahulu';
+    return;
+  }
+
+  try {
+    const result = await callApi({
+      action: 'addKoreksi',
+      passkey: state.adminPasskey,
+      staffId: state.koreksiStaffId,
+      tanggal: tanggal
+    });
+    if (result.success) {
+      await refreshKoreksiScreen();
+    } else {
+      errEl.textContent = result.message;
+    }
+  } catch (e) {
+    errEl.textContent = 'Gagal terhubung ke server';
+  }
+}
+
+async function deleteKoreksiItem(presensiId) {
+  if (!confirm('Hapus catatan kehadiran ini?')) return;
+  const result = await callApi({ action: 'deleteKoreksi', passkey: state.adminPasskey, presensiId: presensiId });
+  if (result.success) {
+    await refreshKoreksiScreen();
+  } else {
+    alert(result.message);
+  }
+}
+
+async function refreshKoreksiScreen() {
+  const result = await callApi({ action: 'getRekap', passkey: state.adminPasskey });
+  if (result.success) {
+    state.currentRekap = result.rekap;
+    const staff = state.currentRekap.find(s => s.id === state.koreksiStaffId);
+    document.getElementById('koreksiTanggal').value = '';
+    renderKoreksiRiwayat(staff);
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
