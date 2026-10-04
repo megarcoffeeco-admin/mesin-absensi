@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mesin Absensi</title>
+<title>MEGAR Absensi</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5a6e50">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MEGAR Absensi">
 <style>
   :root {
     --bg: #f4f5f7;
@@ -179,7 +186,7 @@
 <!-- WELCOME SCREEN -->
 <div id="screen-welcome" class="screen active">
   <div class="container">
-    <div class="app-title">📋 Mesin Absensi</div>
+    <div class="app-title">📋 MEGAR Absensi</div>
     <div class="app-subtitle">Presensi kehadiran staf</div>
     <button class="btn btn-primary" onclick="goTo('checkin')">Check In</button>
     <div style="text-align:center; margin-top: 32px;">
@@ -642,6 +649,12 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
 }
 </script>
 </body>
