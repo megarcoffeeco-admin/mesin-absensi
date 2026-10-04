@@ -162,6 +162,16 @@
     border-radius: 50%; width: 40px; height: 40px;
     font-size: 18px; cursor: pointer;
   }
+  .toast {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--success); color: white; padding: 10px 20px;
+    border-radius: 10px; font-size: 14px; font-weight: 600;
+    z-index: 999; opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error-toast { background: var(--danger); }
+  .staff-fee { font-size: 12px; color: var(--success); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -237,6 +247,7 @@
         <label>Tambah Staf Baru</label>
         <input type="text" id="newStaffNama" placeholder="Nama staf">
         <input type="text" inputmode="numeric" maxlength="4" id="newStaffPin" placeholder="PIN 4 digit">
+        <input type="text" inputmode="numeric" id="newStaffRate" placeholder="Fee harian (Rp), contoh: 100000">
         <div id="addStaffError" class="error-msg"></div>
         <button class="btn btn-primary" onclick="submitAddStaff()">Tambah Staf</button>
       </div>
@@ -263,6 +274,8 @@
   </div>
 </div>
 
+<div id="toast" class="toast"></div>
+
 <script src="config.js"></script>
 <script>
 let state = {
@@ -283,6 +296,13 @@ function goTo(screen) {
   if (screen === 'admin') {
     loadRekap();
   }
+}
+
+function showToast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError ? ' error-toast' : '');
+  setTimeout(() => { el.className = 'toast'; }, 2200);
 }
 
 async function callApi(payload) {
@@ -406,6 +426,7 @@ async function loadRekap() {
         <div>
           <div class="staff-name">${escapeHtml(s.nama)}</div>
           <div class="staff-meta">Tap untuk koreksi</div>
+          ${s.rateHarian > 0 ? `<div class="staff-fee">Rp ${s.totalFee.toLocaleString('id-ID')}</div>` : ''}
         </div>
         <div class="badge">${s.totalHadir} hari</div>
       </div>
@@ -434,11 +455,13 @@ async function loadStaffList() {
       <div class="staff-row">
         <div>
           <div class="staff-name">${escapeHtml(s.nama)} ${s.aktif ? '' : '<span class="badge inactive">nonaktif</span>'}</div>
-          <div class="staff-meta">PIN: ${escapeHtml(s.pin)}</div>
+          <div class="staff-meta">PIN: ${escapeHtml(s.pin)} · Fee/hari: Rp ${(s.rateHarian || 0).toLocaleString('id-ID')}</div>
         </div>
         <div>
           <button class="icon-btn" onclick="editStaffPin('${s.id}', '${escapeHtml(s.nama)}')" title="Ubah PIN">✏️</button>
-          ${s.aktif ? `<button class="icon-btn" onclick="deactivateStaff('${s.id}', '${escapeHtml(s.nama)}')" title="Nonaktifkan">🗑️</button>` : ''}
+          <button class="icon-btn" onclick="editStaffRate('${s.id}', '${escapeHtml(s.nama)}', ${s.rateHarian || 0})" title="Ubah fee harian">💰</button>
+          ${s.aktif ? `<button class="icon-btn" onclick="deactivateStaff('${s.id}', '${escapeHtml(s.nama)}')" title="Nonaktifkan">⏸️</button>` : ''}
+          <button class="icon-btn" onclick="hardDeleteStaffConfirm('${s.id}', '${escapeHtml(s.nama)}')" title="Hapus permanen">🗑️</button>
         </div>
       </div>
     `).join('');
@@ -450,6 +473,7 @@ async function loadStaffList() {
 async function submitAddStaff() {
   const nama = document.getElementById('newStaffNama').value.trim();
   const pin = document.getElementById('newStaffPin').value.trim();
+  const rate = document.getElementById('newStaffRate').value.trim();
   const errEl = document.getElementById('addStaffError');
   errEl.textContent = '';
 
@@ -463,10 +487,12 @@ async function submitAddStaff() {
   }
 
   try {
-    const result = await callApi({ action: 'addStaff', passkey: state.adminPasskey, nama: nama, pin: pin });
+    const result = await callApi({ action: 'addStaff', passkey: state.adminPasskey, nama: nama, pin: pin, rateHarian: rate || 0 });
     if (result.success) {
       document.getElementById('newStaffNama').value = '';
       document.getElementById('newStaffPin').value = '';
+      document.getElementById('newStaffRate').value = '';
+      showToast('Staf ditambahkan');
       loadStaffList();
     } else {
       errEl.textContent = result.message;
@@ -485,6 +511,23 @@ async function editStaffPin(id, nama) {
   }
   const result = await callApi({ action: 'updateStaff', passkey: state.adminPasskey, id: id, pin: newPin });
   if (result.success) {
+    showToast('PIN diperbarui');
+    loadStaffList();
+  } else {
+    alert(result.message);
+  }
+}
+
+async function editStaffRate(id, nama, currentRate) {
+  const newRate = prompt('Fee harian baru untuk ' + nama + ' (Rp):', currentRate || '');
+  if (newRate === null) return;
+  if (newRate !== '' && isNaN(Number(newRate))) {
+    alert('Fee harus berupa angka');
+    return;
+  }
+  const result = await callApi({ action: 'updateStaff', passkey: state.adminPasskey, id: id, rateHarian: newRate });
+  if (result.success) {
+    showToast('Fee harian diperbarui');
     loadStaffList();
   } else {
     alert(result.message);
@@ -492,9 +535,21 @@ async function editStaffPin(id, nama) {
 }
 
 async function deactivateStaff(id, nama) {
-  if (!confirm('Nonaktifkan ' + nama + '? Riwayat kehadiran tetap tersimpan.')) return;
+  if (!confirm('Nonaktifkan ' + nama + '? Riwayat kehadiran tetap tersimpan, bisa diaktifkan lagi nanti.')) return;
   const result = await callApi({ action: 'deleteStaff', passkey: state.adminPasskey, id: id });
   if (result.success) {
+    showToast('Staf dinonaktifkan');
+    loadStaffList();
+  } else {
+    alert(result.message);
+  }
+}
+
+async function hardDeleteStaffConfirm(id, nama) {
+  if (!confirm('HAPUS PERMANEN ' + nama + '? Seluruh riwayat kehadirannya juga akan terhapus. Tindakan ini tidak bisa dibatalkan.')) return;
+  const result = await callApi({ action: 'hardDeleteStaff', passkey: state.adminPasskey, id: id });
+  if (result.success) {
+    showToast('Staf dihapus permanen');
     loadStaffList();
   } else {
     alert(result.message);
@@ -506,7 +561,8 @@ async function deactivateStaff(id, nama) {
 function openKoreksi(staffId) {
   state.koreksiStaffId = staffId;
   const staff = state.currentRekap.find(s => s.id === staffId);
-  document.getElementById('koreksiStaffName').textContent = staff.nama;
+  const feeText = staff.rateHarian > 0 ? ` — Rp ${staff.totalFee.toLocaleString('id-ID')}` : '';
+  document.getElementById('koreksiStaffName').textContent = staff.nama + ' (' + staff.totalHadir + ' hari' + feeText + ')';
   document.getElementById('koreksiTanggal').value = '';
   document.getElementById('koreksiError').textContent = '';
   renderKoreksiRiwayat(staff);
@@ -545,22 +601,30 @@ async function submitKoreksi() {
       tanggal: tanggal
     });
     if (result.success) {
+      showToast('Koreksi berhasil ditambahkan');
       await refreshKoreksiScreen();
     } else {
-      errEl.textContent = result.message;
+      errEl.textContent = result.message || 'Gagal menambahkan koreksi';
+      showToast(result.message || 'Gagal menambahkan koreksi', true);
     }
   } catch (e) {
-    errEl.textContent = 'Gagal terhubung ke server';
+    errEl.textContent = 'Gagal terhubung ke server: ' + e.message;
+    showToast('Gagal terhubung ke server', true);
   }
 }
 
 async function deleteKoreksiItem(presensiId) {
   if (!confirm('Hapus catatan kehadiran ini?')) return;
-  const result = await callApi({ action: 'deleteKoreksi', passkey: state.adminPasskey, presensiId: presensiId });
-  if (result.success) {
-    await refreshKoreksiScreen();
-  } else {
-    alert(result.message);
+  try {
+    const result = await callApi({ action: 'deleteKoreksi', passkey: state.adminPasskey, presensiId: presensiId });
+    if (result.success) {
+      showToast('Catatan dihapus');
+      await refreshKoreksiScreen();
+    } else {
+      showToast(result.message || 'Gagal menghapus', true);
+    }
+  } catch (e) {
+    showToast('Gagal terhubung ke server', true);
   }
 }
 
